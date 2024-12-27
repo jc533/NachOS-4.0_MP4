@@ -51,7 +51,7 @@
 void ExceptionHandler(ExceptionType which)
 {
 	int type = kernel->machine->ReadRegister(2);
-	int val;
+	int val,size;
 	int status, exit, threadID, programID;
 	DEBUG(dbgSys, "Received Exception " << which << " type: " << type << "\n");
 	switch (which)
@@ -76,13 +76,13 @@ void ExceptionHandler(ExceptionType which)
 			ASSERTNOTREACHED();
 			break;
 		// MP4 mod tag
-#ifdef FILESYS_STUB
 		case SC_Create:
 			val = kernel->machine->ReadRegister(4);
+			size = kernel->machine->ReadRegister(5);
 			{
 				char *filename = &(kernel->machine->mainMemory[val]);
 				//cout << filename << endl;
-				status = SysCreate(filename);
+				status = SysCreate(filename,size);
 				kernel->machine->WriteRegister(2, (int)status);
 			}
 			kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
@@ -151,6 +151,22 @@ void ExceptionHandler(ExceptionType which)
 				int fid = SysClose(val);
 				kernel->machine->WriteRegister(2, fid);
 			};
+			kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+			kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			return;
+			ASSERTNOTREACHED();
+			break;
+#ifdef FILESYS_STUB
+		case SC_Create:
+			cout << create<<endl;
+			val = kernel->machine->ReadRegister(4);
+			{
+				char *filename = &(kernel->machine->mainMemory[val]);
+				//cout << filename << endl;
+				status = SysCreate(filename);
+				kernel->machine->WriteRegister(2, (int)status);
+			}
 			kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
 			kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);
 			kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg) + 4);
