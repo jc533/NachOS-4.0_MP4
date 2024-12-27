@@ -261,15 +261,15 @@ OpenFileId FileSystem::OpenAFile(char *path){
     OpenFileId Fid = -1;
     if(file)
         Fid = ++filenum;
-    std::cout << Fid << '\n';
+    //std::cout << Fid << '\n';
     return Fid;
 }
 
 int FileSystem::Read(char *buffer, int size, OpenFileId id){
-    std::cout << id <<" maybe here\n";
+    //std::cout << id <<" maybe here\n";
     if(id > 0){
         OpenFile *openfile = (OpenFile*)file;
-        std::cout << "are u running\n"; 
+        //std::cout << "are u running\n"; 
         return openfile->Read(buffer, size);
     }
     return 0;
@@ -278,14 +278,19 @@ int FileSystem::Read(char *buffer, int size, OpenFileId id){
 int FileSystem::Write(char *buffer, int size, OpenFileId id){
     if(id > 0){
         OpenFile *openfile = (OpenFile*)file;
-        std::cout << "are u running 2\n"; 
+        //std::cout << "are u running 2\n"; 
         return openfile->Write(buffer, size);
     }
     return 0;
 }
 
 int FileSystem::Close(OpenFileId id){
-
+    if(id > 0){
+        OpenFile *openfile = file;
+        delete openfile;
+        filenum--;
+        return 1;
+    }
     return 0;
 }
 //----------------------------------------------------------------------
