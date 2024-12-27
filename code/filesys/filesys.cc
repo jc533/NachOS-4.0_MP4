@@ -144,6 +144,8 @@ FileSystem::FileSystem(bool format)
         freeMapFile = new OpenFile(FreeMapSector);
         directoryFile = new OpenFile(DirectorySector);
     }
+    filenum = 0;
+    file = NULL;
 }
 
 //----------------------------------------------------------------------
@@ -255,18 +257,30 @@ OpenFile * FileSystem::Open(char *name)
 }
 
 OpenFileId FileSystem::OpenAFile(char *path){
-    OpenFileId *Fid = NULL;
-    
-    return *Fid;
+    file = Open(path);
+    OpenFileId Fid = -1;
+    if(file)
+        Fid = ++filenum;
+    std::cout << Fid << '\n';
+    return Fid;
 }
 
 int FileSystem::Read(char *buffer, int size, OpenFileId id){
-
+    std::cout << id <<" maybe here\n";
+    if(id > 0){
+        OpenFile *openfile = (OpenFile*)file;
+        std::cout << "are u running\n"; 
+        return openfile->Read(buffer, size);
+    }
     return 0;
 }
 
 int FileSystem::Write(char *buffer, int size, OpenFileId id){
-
+    if(id > 0){
+        OpenFile *openfile = (OpenFile*)file;
+        std::cout << "are u running 2\n"; 
+        return openfile->Write(buffer, size);
+    }
     return 0;
 }
 
