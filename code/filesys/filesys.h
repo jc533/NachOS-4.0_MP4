@@ -93,6 +93,11 @@ public:
 
 	OpenFile *Open(char *name); // Open a file (UNIX open)
 
+	OpenFileId OpenAFile(char *path);  
+	int Read(char *buffer, int size, OpenFileId id);
+	int Write(char *buffer, int size, OpenFileId id);
+	int Close(OpenFileId id);
+
 	bool Remove(char *name); // Delete a file (UNIX unlink)
 
 	void List(); // List all the files in the file system

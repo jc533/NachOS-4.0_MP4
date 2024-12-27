@@ -254,6 +254,26 @@ OpenFile * FileSystem::Open(char *name)
     return openFile; // return NULL if not found
 }
 
+OpenFileId FileSystem::OpenAFile(char *path){
+    OpenFileId *Fid = NULL;
+    
+    return *Fid;
+}
+
+int FileSystem::Read(char *buffer, int size, OpenFileId id){
+
+    return 0;
+}
+
+int FileSystem::Write(char *buffer, int size, OpenFileId id){
+
+    return 0;
+}
+
+int FileSystem::Close(OpenFileId id){
+
+    return 0;
+}
 //----------------------------------------------------------------------
 // FileSystem::Remove
 // 	Delete a file from the file system.  This requires:
@@ -350,4 +370,6 @@ void FileSystem::Print()
     delete directory;
 }
 
+
 #endif // FILESYS_STUB
+
