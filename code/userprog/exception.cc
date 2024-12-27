@@ -91,6 +91,72 @@ void ExceptionHandler(ExceptionType which)
 			return;
 			ASSERTNOTREACHED();
 			break;
+		case SC_Open:
+			DEBUG(dbgFile, "Open file\n");
+			val = kernel->machine->ReadRegister(4);
+			{ //do magic
+				char *filename = &(kernel->machine->mainMemory[val]);
+				int fid = SysOpen(filename);
+				// status = SysCreate(filename);
+				kernel->machine->WriteRegister(2, fid);
+			};
+			kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+			kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			return;
+			ASSERTNOTREACHED();
+			break;
+		case SC_Read:
+			// 	system call code -- r2
+			//		arg1 -- r4
+			//		arg2 -- r5
+			//		arg3 -- r6
+			//		arg4 -- r7
+			DEBUG(dbgSys, "File Read\n");
+			val = kernel->machine->ReadRegister(4);
+			{ //do magic
+				char *buffer = &(kernel->machine->mainMemory[val]);
+				int size = kernel->machine->ReadRegister(5);
+				OpenFileId id = kernel->machine->ReadRegister(6);
+				int fid = SysRead(buffer, size, id);
+				kernel->machine->WriteRegister(2, fid);
+			};
+			kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+			kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			return;
+			ASSERTNOTREACHED();
+			break;
+		case SC_Write:
+			DEBUG(dbgSys, "File Write\n");
+			val = kernel->machine->ReadRegister(4);
+			{ //do magic
+				char *buffer = &(kernel->machine->mainMemory[val]);
+				int size = kernel->machine->ReadRegister(5);
+				OpenFileId id = kernel->machine->ReadRegister(6);
+				int fid = SysWrite(buffer, size, id);
+				kernel->machine->WriteRegister(2, fid);
+			};
+			kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+			kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			return;
+			ASSERTNOTREACHED();
+			break;
+		case SC_Close:
+			DEBUG(dbgSys, "File Close\n");
+			val = kernel->machine->ReadRegister(4);
+			{ //do magic
+				char *buffer = &(kernel->machine->mainMemory[val]);
+				int fid = SysClose(val);
+				kernel->machine->WriteRegister(2, fid);
+			};
+			kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+			kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg) + 4);
+			return;
+			ASSERTNOTREACHED();
+			break;
 #endif
 		case SC_Add:
 			DEBUG(dbgSys, "Add " << kernel->machine->ReadRegister(4) << " + " << kernel->machine->ReadRegister(5) << "\n");
