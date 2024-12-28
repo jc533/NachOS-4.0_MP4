@@ -76,7 +76,8 @@ private:
 		In-core part - none
 		
 	*/
-
+	FileHeader* nextFileHeader;
+	int fileHeaderSec;
 	int numBytes;				// Number of bytes in the file
 	int numSectors;				// Number of data sectors in the file
 	int dataSectors[NumDirect]; // Disk sector numbers for each data

@@ -40,6 +40,8 @@ FileHeader::FileHeader()
 {
 	numBytes = -1;
 	numSectors = -1;
+	nextFileHeader = NULL;
+	fileHeaderSec = -1;
 	memset(dataSectors, -1, sizeof(dataSectors));
 }
 
@@ -67,18 +69,30 @@ FileHeader::~FileHeader()
 //----------------------------------------------------------------------
 
 bool FileHeader::Allocate(PersistentBitmap *freeMap, int fileSize)
-{
-	numBytes = fileSize;
-	numSectors = divRoundUp(fileSize, SectorSize);
+{	
+	int remainBytes = fileSize;
+	if (fileSize > MaxFileSize){
+		remainBytes -= MaxFileSize;
+		numBytes = MaxFileSize;
+		numSectors = divRoundUp(MaxFileSize, SectorSize);
+	}else{
+		remainBytes = 0;
+		numBytes = fileSize;
+		numSectors = divRoundUp(fileSize, SectorSize);
+	}
 	if (freeMap->NumClear() < numSectors)
 		return FALSE; // not enough space
-
 	for (int i = 0; i < numSectors; i++)
 	{
 		dataSectors[i] = freeMap->FindAndSet();
 		// since we checked that there was enough free space,
 		// we expect this to succeed
 		ASSERT(dataSectors[i] >= 0);
+	}
+	fileHeaderSec = dataSectors[0];
+	if(remainBytes){
+		nextFileHeader = new FileHeader();
+		return nextFileHeader->Allocate(freeMap,remainBytes);
 	}
 	return TRUE;
 }
@@ -97,6 +111,9 @@ void FileHeader::Deallocate(PersistentBitmap *freeMap)
 		ASSERT(freeMap->Test((int)dataSectors[i])); // ought to be marked!
 		freeMap->Clear((int)dataSectors[i]);
 	}
+	if(nextFileHeader){
+		nextFileHeader->Deallocate(freeMap);
+	}
 }
 
 //----------------------------------------------------------------------
@@ -109,6 +126,9 @@ void FileHeader::Deallocate(PersistentBitmap *freeMap)
 void FileHeader::FetchFrom(int sector)
 {
 	kernel->synchDisk->ReadSector(sector, (char *)this);
+	if(nextFileHeader){
+		nextFileHeader->FetchFrom(nextFileHeader->fileHeaderSec);
+	}
 
 	/*
 		MP4 Hint:
@@ -126,6 +146,10 @@ void FileHeader::FetchFrom(int sector)
 void FileHeader::WriteBack(int sector)
 {
 	kernel->synchDisk->WriteSector(sector, (char *)this);
+	if(nextFileHeader){
+		nextFileHeader->WriteBack(nextFileHeader->fileHeaderSec);
+	}
+
 
 	/*
 		MP4 Hint:
@@ -149,7 +173,13 @@ void FileHeader::WriteBack(int sector)
 
 int FileHeader::ByteToSector(int offset)
 {
-	return (dataSectors[offset / SectorSize]);
+	int sectnum = offset / SectorSize;
+	int maxidx = divRoundUp(MaxFileSize, SectorSize);
+	if(sectnum < maxidx){
+		return (dataSectors[sectnum]);
+	}else {
+		return nextFileHeader->ByteToSector(offset-MaxFileSize);
+	}
 }
 
 //----------------------------------------------------------------------
@@ -159,7 +189,11 @@ int FileHeader::ByteToSector(int offset)
 
 int FileHeader::FileLength()
 {
-	return numBytes;
+	int length = numBytes;
+	if(nextFileHeader){
+		length += nextFileHeader->FileLength();
+	}
+	return length;
 }
 
 //----------------------------------------------------------------------
@@ -190,4 +224,7 @@ void FileHeader::Print()
 		printf("\n");
 	}
 	delete[] data;
+	if(nextFileHeader){
+		nextFileHeader->Print();
+	}
 }
