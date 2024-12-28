@@ -41,7 +41,7 @@ FileHeader::FileHeader()
 	numBytes = -1;
 	numSectors = -1;
 	nextFileHeader = NULL;
-	fileHeaderSec = -1;
+	nextFileHeaderSec = -1;
 	memset(dataSectors, -1, sizeof(dataSectors));
 }
 
@@ -89,9 +89,10 @@ bool FileHeader::Allocate(PersistentBitmap *freeMap, int fileSize)
 		// we expect this to succeed
 		ASSERT(dataSectors[i] >= 0);
 	}
-	fileHeaderSec = dataSectors[0];
 	if(remainBytes){
 		nextFileHeader = new FileHeader();
+		nextFileHeaderSec = freeMap->FindAndSet();
+		if(!nextFileHeaderSec) return FALSE;
 		return nextFileHeader->Allocate(freeMap,remainBytes);
 	}
 	return TRUE;
@@ -125,9 +126,10 @@ void FileHeader::Deallocate(PersistentBitmap *freeMap)
 
 void FileHeader::FetchFrom(int sector)
 {
-	kernel->synchDisk->ReadSector(sector, (char *)this);
-	if(nextFileHeader){
-		nextFileHeader->FetchFrom(nextFileHeader->fileHeaderSec);
+	kernel->synchDisk->ReadSector(sector, (char *)this + sizeof(FileHeader*));
+	if(nextFileHeaderSec != -1){
+		nextFileHeader = new FileHeader();
+		nextFileHeader->FetchFrom(nextFileHeaderSec);
 	}
 
 	/*
@@ -145,9 +147,20 @@ void FileHeader::FetchFrom(int sector)
 
 void FileHeader::WriteBack(int sector)
 {
-	kernel->synchDisk->WriteSector(sector, (char *)this);
+
+	// memcpy(buf+offset, &numBytes, sizeof(numBytes));
+	// offset += sizeof(numBytes);
+	// memcpy(buf+offset, &numSectors, sizeof(numSectors));
+	// offset += sizeof(numSectors);
+	// memcpy(buf+offset, &dataSectors, sizeof(dataSectors));
+	// offset += sizeof(dataSectors);
+	// memcpy(buf+offset, &fileHeaderSec, sizeof(fileHeaderSec));
+	// offset += sizeof(fileHeaderSec);
+	// memcpy(buf+offset, &nextFileHeader, sizeof(nextFileHeader));
+
+	kernel->synchDisk->WriteSector(sector, (char *)this + sizeof(FileHeader*));
 	if(nextFileHeader){
-		nextFileHeader->WriteBack(nextFileHeader->fileHeaderSec);
+		nextFileHeader->WriteBack(nextFileHeaderSec);
 	}
 
 
