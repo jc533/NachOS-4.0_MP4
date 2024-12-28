@@ -17,8 +17,9 @@
 #include "disk.h"
 #include "pbitmap.h"
 
-#define NumDirect ((SectorSize - 3 * sizeof(int)) / sizeof(int))
-#define MaxFileSize (NumDirect * SectorSize)
+#define NumDirect 128//((SectorSize - 2 * sizeof(int)) / sizeof(int))
+#define NumIndirect SectorsPerTrack - NumDirect
+#define MaxFileSize (NumDirect + NumIndirect * SectorSize / sizeof(int)) * SectorSize//(NumDirect * SectorSize)
 
 // The following class defines the Nachos "file header" (in UNIX terms,
 // the "i-node"), describing where on disk to find all of the data in the file.
@@ -61,6 +62,7 @@ public:
 
 	void Print(); // Print the contents of the file.
 
+	void AllocateIndirect(PersistentBitmap *freeMap, int sectorsRequired);
 private:
 	/*
 		MP4 hint:
@@ -76,12 +78,13 @@ private:
 		In-core part - none
 		
 	*/
-	FileHeader* nextFileHeader;
+	// FileHeader* nextFileHeader;
+	// int fileHeaderSec;
 	int numBytes;				// Number of bytes in the file
 	int numSectors;				// Number of data sectors in the file
 	int dataSectors[NumDirect]; // Disk sector numbers for each data
 								// block in the file
-	int nextFileHeaderSec;
+	int indirectSector;
 };
 
 #endif // FILEHDR_H

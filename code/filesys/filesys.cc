@@ -206,6 +206,7 @@ bool FileSystem::Create(char *name, int initialSize)
     {
         freeMap = new PersistentBitmap(freeMapFile, NumSectors);
         sector = freeMap->FindAndSet(); // find a sector to hold the file header
+        
         if (sector == -1)
             success = FALSE; // no free block for file header
         else if (!directory->Add(name, sector))
@@ -219,6 +220,8 @@ bool FileSystem::Create(char *name, int initialSize)
             {
                 success = TRUE;
                 // everthing worked, flush all changes back to disk
+                //directory->List();
+                //DEBUG('f', sector);
                 hdr->WriteBack(sector);
                 directory->WriteBack(directoryFile);
                 freeMap->WriteBack(freeMapFile);
@@ -247,9 +250,10 @@ OpenFile * FileSystem::Open(char *name)
     OpenFile *openFile = NULL;
     int sector;
 
-    DEBUG(dbgFile, "Opening file" << name);
+    DEBUG(dbgFile, "Opening file " << name);
     directory->FetchFrom(directoryFile);
     sector = directory->Find(name);
+    //DEBUG('f', sector << '\n');
     if (sector >= 0)
         openFile = new OpenFile(sector); // name was found in directory
     delete directory;

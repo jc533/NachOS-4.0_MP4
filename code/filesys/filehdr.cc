@@ -40,8 +40,8 @@ FileHeader::FileHeader()
 {
 	numBytes = -1;
 	numSectors = -1;
-	nextFileHeader = NULL;
-	nextFileHeaderSec = -1;
+	// nextFileHeader = NULL;
+	// fileHeaderSec = -1;
 	memset(dataSectors, -1, sizeof(dataSectors));
 }
 
@@ -70,34 +70,61 @@ FileHeader::~FileHeader()
 
 bool FileHeader::Allocate(PersistentBitmap *freeMap, int fileSize)
 {	
-	int remainBytes = fileSize;
-	if (fileSize > MaxFileSize){
-		remainBytes -= MaxFileSize;
-		numBytes = MaxFileSize;
-		numSectors = divRoundUp(MaxFileSize, SectorSize);
-	}else{
-		remainBytes = 0;
-		numBytes = fileSize;
-		numSectors = divRoundUp(fileSize, SectorSize);
+	// int remainBytes = fileSize;
+	// if (fileSize > MaxFileSize){
+	// 	remainBytes -= MaxFileSize;
+	// 	numBytes = MaxFileSize;
+	// 	numSectors = divRoundUp(MaxFileSize, SectorSize);
+	// }else{
+	// 	remainBytes = 0;
+	// 	numBytes = fileSize;
+	// 	numSectors = divRoundUp(fileSize, SectorSize);
+	// }
+	// if (freeMap->NumClear() < numSectors)
+	// 	return FALSE; // not enough space
+	// for (int i = 0; i < numSectors; i++)
+	// {
+	// 	dataSectors[i] = freeMap->FindAndSet();
+	// 	// since we checked that there was enough free space,
+	// 	// we expect this to succeed
+	// 	ASSERT(dataSectors[i] >= 0);
+	// }
+	// fileHeaderSec = dataSectors[0];
+	// if(remainBytes){
+	// 	nextFileHeader = new FileHeader();
+	// 	return nextFileHeader->Allocate(freeMap,remainBytes);
+	// }
+	numBytes = fileSize;
+	numSectors = divRoundUp(fileSize, SectorSize);
+	if(freeMap->NumClear() < numSectors)
+		return FALSE;
+	if(numSectors <= NumDirect){
+		for(int i = 0; i < numSectors; i++){
+			dataSectors[i] = freeMap->FindAndSet();
+			ASSERT(dataSectors[i] >= 0);
+		}
 	}
-	if (freeMap->NumClear() < numSectors)
-		return FALSE; // not enough space
-	for (int i = 0; i < numSectors; i++)
-	{
-		dataSectors[i] = freeMap->FindAndSet();
-		// since we checked that there was enough free space,
-		// we expect this to succeed
-		ASSERT(dataSectors[i] >= 0);
+	else{
+		for(int i = 0; i < NumDirect; i++){
+			dataSectors[i] = freeMap->FindAndSet();
+			ASSERT(dataSectors[i] >= 0);
+		}
+		AllocateIndirect(freeMap, numSectors - NumDirect);
 	}
-	if(remainBytes){
-		nextFileHeader = new FileHeader();
-		nextFileHeaderSec = freeMap->FindAndSet();
-		if(!nextFileHeaderSec) return FALSE;
-		return nextFileHeader->Allocate(freeMap,remainBytes);
-	}
+
 	return TRUE;
 }
 
+void FileHeader::AllocateIndirect(PersistentBitmap *freeMap, int sectorsRequired){
+	indirectSector = freeMap->FindAndSet();
+	if(indirectSector == -1) return;
+	int indirectBlock[NumIndirect];
+	for(int i = 0; i < sectorsRequired; i++){
+		indirectBlock[i] = freeMap->FindAndSet();
+		ASSERT(indirectBlock[i] >= 0);
+	}
+	WriteBack(indirectSector);
+}
 //----------------------------------------------------------------------
 // FileHeader::Deallocate
 // 	De-allocate all the space allocated for data blocks for this file.
@@ -112,9 +139,9 @@ void FileHeader::Deallocate(PersistentBitmap *freeMap)
 		ASSERT(freeMap->Test((int)dataSectors[i])); // ought to be marked!
 		freeMap->Clear((int)dataSectors[i]);
 	}
-	if(nextFileHeader){
-		nextFileHeader->Deallocate(freeMap);
-	}
+	// if(nextFileHeader){
+	// 	nextFileHeader->Deallocate(freeMap);
+	// }
 }
 
 //----------------------------------------------------------------------
@@ -126,11 +153,10 @@ void FileHeader::Deallocate(PersistentBitmap *freeMap)
 
 void FileHeader::FetchFrom(int sector)
 {
-	kernel->synchDisk->ReadSector(sector, (char *)this + sizeof(FileHeader*));
-	if(nextFileHeaderSec != -1){
-		nextFileHeader = new FileHeader();
-		nextFileHeader->FetchFrom(nextFileHeaderSec);
-	}
+	kernel->synchDisk->ReadSector(sector, (char *)this);
+	// if(nextFileHeader){
+	// 	nextFileHeader->FetchFrom(nextFileHeader->fileHeaderSec);
+	// }
 
 	/*
 		MP4 Hint:
@@ -147,21 +173,10 @@ void FileHeader::FetchFrom(int sector)
 
 void FileHeader::WriteBack(int sector)
 {
-
-	// memcpy(buf+offset, &numBytes, sizeof(numBytes));
-	// offset += sizeof(numBytes);
-	// memcpy(buf+offset, &numSectors, sizeof(numSectors));
-	// offset += sizeof(numSectors);
-	// memcpy(buf+offset, &dataSectors, sizeof(dataSectors));
-	// offset += sizeof(dataSectors);
-	// memcpy(buf+offset, &fileHeaderSec, sizeof(fileHeaderSec));
-	// offset += sizeof(fileHeaderSec);
-	// memcpy(buf+offset, &nextFileHeader, sizeof(nextFileHeader));
-
-	kernel->synchDisk->WriteSector(sector, (char *)this + sizeof(FileHeader*));
-	if(nextFileHeader){
-		nextFileHeader->WriteBack(nextFileHeaderSec);
-	}
+	kernel->synchDisk->WriteSector(sector, (char *)this);
+	// if(nextFileHeader){
+	// 	nextFileHeader->WriteBack(nextFileHeader->fileHeaderSec);
+	// }
 
 
 	/*
@@ -187,12 +202,13 @@ void FileHeader::WriteBack(int sector)
 int FileHeader::ByteToSector(int offset)
 {
 	int sectnum = offset / SectorSize;
-	int maxidx = divRoundUp(MaxFileSize, SectorSize);
-	if(sectnum < maxidx){
+	//int maxidx = divRoundUp(MaxFileSize, SectorSize);
+	//if(sectnum < maxidx){
 		return (dataSectors[sectnum]);
-	}else {
-		return nextFileHeader->ByteToSector(offset-MaxFileSize);
-	}
+	//}
+	// else {
+	// 	return nextFileHeader->ByteToSector(offset-MaxFileSize);
+	// }
 }
 
 //----------------------------------------------------------------------
@@ -203,9 +219,9 @@ int FileHeader::ByteToSector(int offset)
 int FileHeader::FileLength()
 {
 	int length = numBytes;
-	if(nextFileHeader){
-		length += nextFileHeader->FileLength();
-	}
+	// if(nextFileHeader){
+	// 	length += nextFileHeader->FileLength();
+	// }
 	return length;
 }
 
@@ -237,7 +253,7 @@ void FileHeader::Print()
 		printf("\n");
 	}
 	delete[] data;
-	if(nextFileHeader){
-		nextFileHeader->Print();
-	}
+	// if(nextFileHeader){
+	// 	nextFileHeader->Print();
+	// }
 }
