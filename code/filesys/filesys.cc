@@ -62,9 +62,10 @@
 // supports extensible files, the directory size sets the maximum number
 // of files that can be loaded onto the disk.
 #define FreeMapFileSize (NumSectors / BitsInByte)
-#define NumDirEntries 10
+#define NumDirEntries 64
 #define DirectoryFileSize (sizeof(DirectoryEntry) * NumDirEntries)
-
+#define DIR 1
+#define FIL 0
 //----------------------------------------------------------------------
 // FileSystem::FileSystem
 // 	Initialize the file system.  If format = TRUE, the disk has

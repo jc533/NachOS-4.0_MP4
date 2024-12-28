@@ -37,7 +37,9 @@ public:
                                    //   FileHeader for this file
     char name[FileNameMaxLen + 1]; // Text name for file, with +1 for
                                    // the trailing '\0'
+    
 };
+
 
 // The following class defines a UNIX-like "directory".  Each entry in
 // the directory describes a file, and where to find it on disk.
@@ -80,11 +82,11 @@ private:
 		Disk part: table
 		In-core part: tableSize
 	*/
-
+    
     int tableSize;         // Number of directory entries
     DirectoryEntry *table; // Table of pairs:
                            // <file name, file header location>
-
+    Directory *Directorytable;
     int FindIndex(char *name); // Find the index into the directory
                                //  table corresponding to "name"
 };
