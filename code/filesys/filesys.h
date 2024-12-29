@@ -89,8 +89,9 @@ public:
 	~FileSystem();
 
 	bool Create(char *name, int initialSize);
+	bool CreateD(char *name);
 	// Create a file (UNIX creat)
-	bool FileSystem::Mkdir(const char * path);
+	//bool FileSystem::Mkdir(const char * path);
 	OpenFile *Open(char *name); // Open a file (UNIX open)
 
 	OpenFileId OpenAFile(char *path);  
@@ -99,9 +100,9 @@ public:
 	int Close(OpenFileId id);
 
 	bool Remove(char *name); // Delete a file (UNIX unlink)
-
-	void List(char* path); // List all the files in the file system
-
+	
+	void List(char *path); // List all the files in the file system
+	void ListRecur(char* name);
 	void Print(); // List all the files and their contents
 
 private:

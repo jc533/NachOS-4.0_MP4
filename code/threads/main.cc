@@ -153,9 +153,7 @@ void Print(char *name)
 //----------------------------------------------------------------------
 static void CreateDirectory(char *name)
 {
-    OpenFile *opfile = NULL;
-    kernel->fileSystem->Mkdir(name)
-    
+    kernel->fileSystem->CreateD(name);
     // MP4 Assignment
 }
 
@@ -340,7 +338,10 @@ int main(int argc, char **argv)
     }
     if (dirListFlag)
     {
-        kernel->fileSystem->List(listDirectoryName);
+        if(recursiveListFlag)
+            kernel->fileSystem->ListRecur(listDirectoryName);
+        else
+            kernel->fileSystem->List(listDirectoryName);
     }
     if (mkdirFlag)
     {

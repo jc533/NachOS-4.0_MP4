@@ -18,8 +18,10 @@
 #define DIRECTORY_H
 
 #include "openfile.h"
-#include "list.h"
 
+#define NumDirEntries 64
+#define DIR 1
+#define FIL 0
 #define FileNameMaxLen 9 // for simplicity, we assume \
                          // file names are <= 9 characters long
 
@@ -66,18 +68,18 @@ public:
 
     int Find(char *name); // Find the sector number of the
                           // FileHeader for file: "name"
-
-    bool Add(char *name, int newSector); // Add a file name into the directory
+    int FindPath(char *name);
+    bool Add(char *name, int newSector, bool isDirectory); // Add a file name into the directory
 
     bool Remove(char *name); // Remove a file from the directory
-
-    void List(char *path);  // Print the names of all the files
+    int DirSec(char *name);
+    void List();  // Print the names of all the files
                   //  in the directory
-    void ListRecursive(char *path,int depth);
+    void ListRecursive(int depth);
     void Print(); // Verbose print of the contents
                   //  of the directory -- all the file
                   //  names and their contents.
-
+    
 private:
     /*
 		MP4 Hint:
@@ -89,27 +91,27 @@ private:
     int tableSize;         // Number of directory entries
     DirectoryEntry *table; // Table of pairs:
                            // <file name, file header location>
-    Directory** Directorytable;
+    
     int FindIndex(char *name); // Find the index into the directory
                                //  table corresponding to "name"
 };
 
-List<string> ParsePath(const char *path) {
-    List<string> result;
-    string str(path);
-    size_t pos = 0;
-    string token;
-    while ((pos = str.find('/')) != string::npos) {
-        token = str.substr(0, pos);
-        if (!token.empty()) {
-            result.Append(token);
-        }
-        str.erase(0, pos + 1);
-    }
-    if (!str.empty()) {
-        result.Append(str);
-    }
-    return result;
-}
-
+// vector<char*> ParsePath(const char *path) {
+//     vector<char*> result;
+//     const char* l = strchr(path, '/');
+//     size_t pos = 0;
+//     const char* token;
+//     // while ((pos = l.find('/')) != string::npos) {
+//     //     token = l.substr(0, pos);
+//     //     if (!token.empty()) {
+//     //         result.push_back(token);
+//     //     }
+//     //     l.erase(0, pos + 1);
+//     // }
+//     // if (!str.empty()) {
+//     //     result.push_back(str);
+//     // }
+//     return result;
+// }
+void Split(char *name, char *Path, char *filename);
 #endif // DIRECTORY_H

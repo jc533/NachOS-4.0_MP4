@@ -39,7 +39,6 @@ Directory::Directory(int size)
     table = new DirectoryEntry[size];
 
     // MP4 mod tag
-    Directorytable = new Directory*[size];
     memset(table, 0, sizeof(DirectoryEntry) * size); // dummy operation to keep valgrind happy
 
     tableSize = size;
@@ -66,14 +65,7 @@ Directory::~Directory()
 
 void Directory::FetchFrom(OpenFile *file)
 {
-    OpenFile* openFile;
     (void)file->ReadAt((char *)table, tableSize * sizeof(DirectoryEntry), 0);
-    for (int i = 0; i < tableSize; i++){
-        if (table[i].inUse && table[i].isDir){
-            openFile = new OpenFile(table[i].sector);
-            Directorytable[i]->FetchFrom(openFile);
-        }
-    }
 }
 
 //----------------------------------------------------------------------
@@ -116,7 +108,6 @@ int Directory::FindIndex(char *name)
 int Directory::Find(char *name)
 {
     int i = FindIndex(name);
-
     if (i != -1)
         return table[i].sector;
     return -1;
@@ -133,7 +124,7 @@ int Directory::Find(char *name)
 //	"newSector" -- the disk sector containing the added file's header
 //----------------------------------------------------------------------
 
-bool Directory::Add(char *name, int newSector)
+bool Directory::Add(char *name, int newSector, bool isDirectory)
 {
     if (FindIndex(name) != -1)
         return FALSE;
@@ -144,6 +135,7 @@ bool Directory::Add(char *name, int newSector)
             table[i].inUse = TRUE;
             strncpy(table[i].name, name, FileNameMaxLen);
             table[i].sector = newSector;
+            table[i].isDir = isDirectory;
             return TRUE;
         }
     return FALSE; // no space.  Fix when we have extensible files.
@@ -172,27 +164,38 @@ bool Directory::Remove(char *name)
 // 	List all the file names in the directory.
 //----------------------------------------------------------------------
 
-void Directory::List(char *path)
+void Directory::List()
 {
     for (int i = 0; i < tableSize; i++)
-        if (table[i].inUse)
-            printf("%s\n", table[i].name);
+        if (table[i].inUse){
+            if(table[i].isDir)
+                printf("[D] %s\n", table[i].name);
+            else printf("[F] %s\n", table[i].name);
+        }
+            
 }
-
-void Directory::ListRecursive(char *path,int depth)
+void Directory::ListRecursive(int depth)
 {
+    OpenFile *temp;
+    Directory *sub = new Directory(NumDirEntries);
     for (int i = 0; i < tableSize; i++){
-        if (!table[i].inUse)continue;
+        if (!table[i].inUse)
+            continue;
         else {
             for(int j=0;j<depth;j++)
                 printf("    ");
-            printf("%s %s",table[i].isDir?"[D]":"[F]",table[i].name);
+            printf("%s %s",table[i].isDir?"[D]":"[F]", table[i].name);
+            printf("\n");
+            if(table[i].isDir){
+                temp = new OpenFile(table[i].sector);
+                sub->FetchFrom(temp);
+                sub->ListRecursive(depth++);
+            }
         }
-        if(table[i].isDir){
-            Directorytable[i]->ListRecursive(table[i].name,depth+1);
-        }
+        
     }
 }
+
 
 //----------------------------------------------------------------------
 // Directory::Print
@@ -214,4 +217,72 @@ void Directory::Print()
         }
     printf("\n");
     delete hdr;
+}
+
+void Split(char *name, char *Path, char *filename){
+    int splithere, cnt = 0;;
+    for (int i = 0; name[i] != '\0'; i++){
+		if (name[i] == '/'){
+			splithere = i;
+		}
+	}
+	Path[0] = '/';
+	for (int i = 1; i < splithere; i++){
+		Path[i] = name[i];
+	}
+    if(splithere == 0) splithere++;
+	Path[splithere] = '\0';
+	for (int i = --splithere; name[i] != '\0'; i++){
+		filename[i - splithere] = name[i];
+        cnt ++;
+	}
+	filename[splithere + cnt] = '\0';
+    //cout << Path << " " << filename << '\n';
+}
+
+int Directory::FindPath(char *name){
+	char rootPath[256];
+	char restPath[256];
+	if (name[1] == '\0'){
+		return 1;
+	}
+	else{
+		bool LastLevel = true;
+		int split = 0;
+		for (int i = 1; name[i] != '\0'; i++)
+		{
+			if (name[i] == '/'){
+				strncpy(rootPath, name, i); 
+				rootPath[i] = '\0';			
+				LastLevel = false;
+				split = i;
+				break;
+			}
+		}
+		if (LastLevel){
+			strcpy(rootPath, name);
+			strcat(rootPath, "\0");
+			return Find(rootPath);
+		}
+		else{
+			int sector = Find(rootPath);
+			if (sector == -1)
+				return -1;
+			Directory *directory = new Directory(sizeof(DirectoryEntry) * 64);
+			OpenFile *directoryFile = new OpenFile(sector);
+			directory->FetchFrom(directoryFile);
+			for (int i = 1; i < strlen(name); i++){
+				if (name[i] == '/')
+				{
+					for (int j = 0; j < strlen(name) - i + 1; j++)
+						restPath[j] = name[j + i];
+					break;
+				}
+			}
+			sector = directory->FindPath(restPath);
+			delete directory;
+			delete directoryFile;
+			return sector;
+		}
+	}
 }

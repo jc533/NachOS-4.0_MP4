@@ -54,6 +54,9 @@ FileHeader::FileHeader()
 //----------------------------------------------------------------------
 FileHeader::~FileHeader()
 {
+	if(nextFileHeader!=NULL){
+        delete nextFileHeader;
+    }
 	// nothing to do now
 }
 

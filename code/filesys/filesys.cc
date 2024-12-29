@@ -51,8 +51,7 @@
 #include "directory.h"
 #include "filehdr.h"
 #include "filesys.h"
-#include "list.h"
-#include <string>
+
 
 // Sectors containing the file headers for the bitmap of free sectors,
 // and the directory of files.  These file headers are placed in well-known
@@ -64,10 +63,9 @@
 // supports extensible files, the directory size sets the maximum number
 // of files that can be loaded onto the disk.
 #define FreeMapFileSize (NumSectors / BitsInByte)
-#define NumDirEntries 64
+
 #define DirectoryFileSize (sizeof(DirectoryEntry) * NumDirEntries)
-#define DIR 1
-#define FIL 0
+
 //----------------------------------------------------------------------
 // FileSystem::FileSystem
 // 	Initialize the file system.  If format = TRUE, the disk has
@@ -197,7 +195,7 @@ bool FileSystem::Create(char *name, int initialSize)
     FileHeader *hdr;
     int sector;
     bool success;
-
+    bool isDir = false;
     DEBUG(dbgFile, "Creating file " << name << " size " << initialSize);
 
     directory = new Directory(NumDirEntries);
@@ -211,7 +209,7 @@ bool FileSystem::Create(char *name, int initialSize)
         sector = freeMap->FindAndSet(); // find a sector to hold the file header
         if (sector == -1)
             success = FALSE; // no free block for file header
-        else if (!directory->Add(name, sector))
+        else if (!directory->Add(name, sector, isDir))
             success = FALSE; // no space in directory
         else
         {
@@ -233,20 +231,66 @@ bool FileSystem::Create(char *name, int initialSize)
     delete directory;
     return success;
 }
+bool FileSystem::CreateD(char *name){
+    
+    Directory *Root = new Directory(NumDirEntries);
+    Directory *directory;
+    PersistentBitmap *freeMap;
+    FileHeader *hdr;
+    OpenFile *file;
+    int sector, directorySec;
+    bool success;
+    bool isDir = true;
+    char Path[256];
+    char filename[10];
+    int filestart;
+    //DEBUG(dbgFile, "Creating file " << name << " size " << initialSize);
 
-bool FileSystem::Mkdir(const char * path){
-    List<string>* pathList = ParsePath(path);
-    ListIterator<string> iterator(pathList);
-
-    for (; !iterator.IsDone(); iterator.Next()) {
-	if (key == getKey(iterator.Item())) { // found!
-	    *itemPtr = iterator.Item();
-	    return TRUE;
-        }
+    Split(name, Path, filename);
+    
+    Root->FetchFrom(directoryFile);
+    DEBUG(dbgFile, "Creating Dir "<< filename << " at " << Path );
+    directorySec = Root->FindPath(Path);
+    if(directorySec == -1){
+        return FALSE;
     }
-    bool file = Create(,DirectoryFileSize);
+    directory = new Directory(NumDirEntries);
+    file = new OpenFile(directorySec);
+    directory->FetchFrom(file);
+    if (directory->Find(filename) != -1)
+        success = FALSE; // file is already in directory
+    else
+    {
+        freeMap = new PersistentBitmap(freeMapFile, NumSectors);
+        sector = freeMap->FindAndSet(); // find a sector to hold the file header
+        if (sector == -1)
+            success = FALSE; // no free block for file header
+        else if (!directory->Add(filename, sector, isDir))
+            success = FALSE; // no space in directory
+        else
+        {
+            hdr = new FileHeader;
+            if(isDir){
+                if(!hdr->Allocate(freeMap, DirectoryFileSize))
+                success = FALSE;
+                else{
+                    success = TRUE;
+                    hdr->WriteBack(sector);
+                    directory->WriteBack(file);
+                    freeMap->WriteBack(freeMapFile);
+                    Directory *temp = new Directory(NumDirEntries);
+                    temp->WriteBack(new OpenFile(sector));
+                }
+            }
+            delete hdr;
+        }
+        delete freeMap;
+    }
+    delete Root;
+    delete file;
+    delete directory;
+    return success;
 }
-
 //----------------------------------------------------------------------
 // FileSystem::Open
 // 	Open a file for reading and writing.
@@ -265,7 +309,7 @@ OpenFile * FileSystem::Open(char *name)
 
     DEBUG(dbgFile, "Opening file" << name);
     directory->FetchFrom(directoryFile);
-    sector = directory->Find(name);
+    sector = directory->FindPath(name);
     if (sector >= 0)
         openFile = new OpenFile(sector); // name was found in directory
     delete directory;
@@ -304,7 +348,6 @@ int FileSystem::Close(OpenFileId id){
     if(id > 0){
         OpenFile *openfile = file;
         delete openfile;
-        filenum--;
         return 1;
     }
     return 0;
@@ -360,15 +403,46 @@ bool FileSystem::Remove(char *name)
 // 	List all the files in the file system directory.
 //----------------------------------------------------------------------
 
-void FileSystem::List(char* path)
+void FileSystem::List(char *path)
 {
+    //cout << path << '\n';
     Directory *directory = new Directory(NumDirEntries);
-
     directory->FetchFrom(directoryFile);
-    directory->List(path);
+    int sect = directory->FindPath(path);
+    OpenFile *file = NULL;
+    if(sect >= 0)
+        file = new OpenFile(sect);
+    directory->FetchFrom(file);
+    directory->List();
     delete directory;
+    delete file;
 }
 
+void FileSystem::ListRecur(char *path){
+    Directory *directory = new Directory(NumDirEntries);
+    int sect;
+    directory->FetchFrom(directoryFile);
+    char *temp = "/";
+    char *token = strtok(path, temp);
+	OpenFile *tempf = directoryFile;
+	while (token != NULL)
+	{
+		token = strcat(token, temp);
+		if ((sect = directory->Find(token)) == -1)
+			break;
+		tempf = new OpenFile(sect);
+		directory->FetchFrom(tempf);
+		token = strtok(NULL, "/");
+		
+	}
+	directory->ListRecursive(0);
+    if(token != NULL){
+        delete directory;
+        delete token;
+        delete temp;
+    }
+    
+}
 //----------------------------------------------------------------------
 // FileSystem::Print
 // 	Print everything about the file system:
@@ -404,6 +478,7 @@ void FileSystem::Print()
     delete freeMap;
     delete directory;
 }
+
 
 
 #endif // FILESYS_STUB
