@@ -168,11 +168,8 @@ void Directory::List()
 {
     for (int i = 0; i < tableSize; i++)
         if (table[i].inUse){
-            if(table[i].isDir)
-                printf("[D] %s\n", table[i].name);
-            else printf("[F] %s\n", table[i].name);
-        }
-            
+            printf("%s\n", table[i].name+1);
+        }  
 }
 void Directory::ListRecursive(int depth)
 {
@@ -184,12 +181,13 @@ void Directory::ListRecursive(int depth)
         else {
             for(int j=0;j<depth;j++)
                 printf("    ");
-            printf("%s %s",table[i].isDir?"[D]":"[F]", table[i].name);
+            printf("%s %s",table[i].isDir?"[D]":"[F]", table[i].name+1);
             printf("\n");
             if(table[i].isDir){
                 temp = new OpenFile(table[i].sector);
+                //cout << table[i].sector << '\n';
                 sub->FetchFrom(temp);
-                sub->ListRecursive(depth++);
+                sub->ListRecursive(depth+1);
             }
         }
         
@@ -220,24 +218,27 @@ void Directory::Print()
 }
 
 void Split(char *name, char *Path, char *filename){
-    int splithere, cnt = 0;;
-    for (int i = 0; name[i] != '\0'; i++){
-		if (name[i] == '/'){
-			splithere = i;
+    int i, j;
+	int split;
+	// /t0/bb/f1
+	for (i = 0; name[i] != '\0'; i++)
+	{
+		if (name[i] == '/')
+		{
+			split = i; // last '/'
 		}
 	}
 	Path[0] = '/';
-	for (int i = 1; i < splithere; i++){
+	for (i = 1; i < split; i++)
+	{
 		Path[i] = name[i];
 	}
-    if(splithere == 0) splithere++;
-	Path[splithere] = '\0';
-	for (int i = --splithere; name[i] != '\0'; i++){
-		filename[i - splithere] = name[i];
-        cnt ++;
+	Path[i] = '\0';
+	for (i = split, j = 0; name[i] != '\0'; i++, j++)
+	{
+		filename[j] = name[i];
 	}
-	filename[splithere + cnt] = '\0';
-    //cout << Path << " " << filename << '\n';
+	filename[j] = '\0';
 }
 
 int Directory::FindPath(char *name){

@@ -190,18 +190,24 @@ FileSystem::~FileSystem()
 
 bool FileSystem::Create(char *name, int initialSize)
 {
+    Directory *Root = new Directory(NumDirEntries);
     Directory *directory;
     PersistentBitmap *freeMap;
     FileHeader *hdr;
-    int sector;
+    int sector, dirsect;
     bool success;
-    bool isDir = false;
     DEBUG(dbgFile, "Creating file " << name << " size " << initialSize);
-
+    char Path[256];
+	char filename[10];
     directory = new Directory(NumDirEntries);
-    directory->FetchFrom(directoryFile);
-
-    if (directory->Find(name) != -1)
+    Root->FetchFrom(directoryFile);
+    Split(name, Path, filename);
+    dirsect = Root->FindPath(Path);
+	if (dirsect == -1)
+		return FALSE;
+	file = new OpenFile(dirsect);
+	directory->FetchFrom(file);
+    if (directory->Find(filename) != -1)
         success = FALSE; // file is already in directory
     else
     {
@@ -209,7 +215,7 @@ bool FileSystem::Create(char *name, int initialSize)
         sector = freeMap->FindAndSet(); // find a sector to hold the file header
         if (sector == -1)
             success = FALSE; // no free block for file header
-        else if (!directory->Add(name, sector, isDir))
+        else if (!directory->Add(filename, sector, false))
             success = FALSE; // no space in directory
         else
         {
@@ -221,7 +227,7 @@ bool FileSystem::Create(char *name, int initialSize)
                 success = TRUE;
                 // everthing worked, flush all changes back to disk
                 hdr->WriteBack(sector);
-                directory->WriteBack(directoryFile);
+                directory->WriteBack(file);
                 freeMap->WriteBack(freeMapFile);
             }
             delete hdr;
@@ -270,18 +276,20 @@ bool FileSystem::CreateD(char *name){
         else
         {
             hdr = new FileHeader;
-            if(isDir){
-                if(!hdr->Allocate(freeMap, DirectoryFileSize))
+            if(!hdr->Allocate(freeMap, DirectoryFileSize))
                 success = FALSE;
-                else{
-                    success = TRUE;
-                    hdr->WriteBack(sector);
-                    directory->WriteBack(file);
-                    freeMap->WriteBack(freeMapFile);
-                    Directory *temp = new Directory(NumDirEntries);
-                    temp->WriteBack(new OpenFile(sector));
-                }
+            else{
+                success = TRUE;
+                hdr->WriteBack(sector);
+                directory->WriteBack(file);
+                freeMap->WriteBack(freeMapFile);
+                delete file;
+                file = new OpenFile(sector);
+                Directory *temp = new Directory(NumDirEntries);
+                temp->WriteBack(file);
+                delete temp;
             }
+
             delete hdr;
         }
         delete freeMap;
