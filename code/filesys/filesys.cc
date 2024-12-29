@@ -51,6 +51,8 @@
 #include "directory.h"
 #include "filehdr.h"
 #include "filesys.h"
+#include "list.h"
+#include <string>
 
 // Sectors containing the file headers for the bitmap of free sectors,
 // and the directory of files.  These file headers are placed in well-known
@@ -232,6 +234,19 @@ bool FileSystem::Create(char *name, int initialSize)
     return success;
 }
 
+bool FileSystem::Mkdir(const char * path){
+    List<string>* pathList = ParsePath(path);
+    ListIterator<string> iterator(pathList);
+
+    for (; !iterator.IsDone(); iterator.Next()) {
+	if (key == getKey(iterator.Item())) { // found!
+	    *itemPtr = iterator.Item();
+	    return TRUE;
+        }
+    }
+    bool file = Create(,DirectoryFileSize);
+}
+
 //----------------------------------------------------------------------
 // FileSystem::Open
 // 	Open a file for reading and writing.
@@ -345,12 +360,12 @@ bool FileSystem::Remove(char *name)
 // 	List all the files in the file system directory.
 //----------------------------------------------------------------------
 
-void FileSystem::List()
+void FileSystem::List(char* path)
 {
     Directory *directory = new Directory(NumDirEntries);
 
     directory->FetchFrom(directoryFile);
-    directory->List();
+    directory->List(path);
     delete directory;
 }
 

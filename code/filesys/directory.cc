@@ -39,6 +39,7 @@ Directory::Directory(int size)
     table = new DirectoryEntry[size];
 
     // MP4 mod tag
+    Directorytable = new Directory*[size];
     memset(table, 0, sizeof(DirectoryEntry) * size); // dummy operation to keep valgrind happy
 
     tableSize = size;
@@ -65,7 +66,14 @@ Directory::~Directory()
 
 void Directory::FetchFrom(OpenFile *file)
 {
+    OpenFile* openFile;
     (void)file->ReadAt((char *)table, tableSize * sizeof(DirectoryEntry), 0);
+    for (int i = 0; i < tableSize; i++){
+        if (table[i].inUse && table[i].isDir){
+            openFile = new OpenFile(table[i].sector);
+            Directorytable[i]->FetchFrom(openFile);
+        }
+    }
 }
 
 //----------------------------------------------------------------------
@@ -164,11 +172,26 @@ bool Directory::Remove(char *name)
 // 	List all the file names in the directory.
 //----------------------------------------------------------------------
 
-void Directory::List()
+void Directory::List(char *path)
 {
     for (int i = 0; i < tableSize; i++)
         if (table[i].inUse)
             printf("%s\n", table[i].name);
+}
+
+void Directory::ListRecursive(char *path,int depth)
+{
+    for (int i = 0; i < tableSize; i++){
+        if (!table[i].inUse)continue;
+        else {
+            for(int j=0;j<depth;j++)
+                printf("    ");
+            printf("%s %s",table[i].isDir?"[D]":"[F]",table[i].name);
+        }
+        if(table[i].isDir){
+            Directorytable[i]->ListRecursive(table[i].name,depth+1);
+        }
+    }
 }
 
 //----------------------------------------------------------------------

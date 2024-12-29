@@ -18,6 +18,7 @@
 #define DIRECTORY_H
 
 #include "openfile.h"
+#include "list.h"
 
 #define FileNameMaxLen 9 // for simplicity, we assume \
                          // file names are <= 9 characters long
@@ -37,6 +38,7 @@ public:
                                    //   FileHeader for this file
     char name[FileNameMaxLen + 1]; // Text name for file, with +1 for
                                    // the trailing '\0'
+    bool isDir;
     
 };
 
@@ -69,8 +71,9 @@ public:
 
     bool Remove(char *name); // Remove a file from the directory
 
-    void List();  // Print the names of all the files
+    void List(char *path);  // Print the names of all the files
                   //  in the directory
+    void ListRecursive(char *path,int depth);
     void Print(); // Verbose print of the contents
                   //  of the directory -- all the file
                   //  names and their contents.
@@ -86,9 +89,27 @@ private:
     int tableSize;         // Number of directory entries
     DirectoryEntry *table; // Table of pairs:
                            // <file name, file header location>
-    Directory *Directorytable;
+    Directory** Directorytable;
     int FindIndex(char *name); // Find the index into the directory
                                //  table corresponding to "name"
 };
+
+List<string> ParsePath(const char *path) {
+    List<string> result;
+    string str(path);
+    size_t pos = 0;
+    string token;
+    while ((pos = str.find('/')) != string::npos) {
+        token = str.substr(0, pos);
+        if (!token.empty()) {
+            result.Append(token);
+        }
+        str.erase(0, pos + 1);
+    }
+    if (!str.empty()) {
+        result.Append(str);
+    }
+    return result;
+}
 
 #endif // DIRECTORY_H
